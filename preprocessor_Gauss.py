@@ -8,7 +8,6 @@ try:
 except FileExistsError:
     pass
 
-
 # Preprocessing images using OpenCV
 def image_preprocess(path: str) -> None:
     img = cv.imread(path, cv.IMREAD_GRAYSCALE) #Transfering images to Black and White
