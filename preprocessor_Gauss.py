@@ -9,7 +9,7 @@ except FileExistsError:
     pass
 
 
-# Preprovessing images using OpenCV
+# Preprocessing images using OpenCV
 def image_preprocess(path: str) -> None:
     img = cv.imread(path, cv.IMREAD_GRAYSCALE) #Transfering images to Black and White
     block_size = 11
