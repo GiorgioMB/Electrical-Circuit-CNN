@@ -1,3 +1,4 @@
+#%%
 import torchvision as tv
 import torch as t
 import os 
@@ -8,8 +9,11 @@ import torchvision.transforms as transforms
 import torchvision.models as models
 import torch.optim as optim
 import torch.nn as nn
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 classes = set()
 boxes = {}
+imgs = {}
 for i in range(26):
     directory = f'/drafter_{i}/csvs/'
     for file in os.listdir(directory):
@@ -17,20 +21,20 @@ for i in range(26):
             df = pd.read_csv(directory + file)
             classes.update(df['object'].tolist())
             temp = df[['xmin', 'ymin', 'xmax', 'ymax']].to_numpy()
-            boxes[file] = t.from_numpy(temp)
+            key_to_save = file.split('.')[0] 
+            boxes[key_to_save] = t.from_numpy(temp)
             
-imgs = {}
+
 
 for i in range(26):
     directory = f'/drafter_{i}/images/'
     for file in os.listdir(directory):
-        if file.endswith(".png"):
+        if file.endswith((".png", ".jpg", ".jpeg")):
             img = tv.io.read_image(directory + file)
-            imgs[file] = img
+            key_to_save = file.split('.')[0]
+            imgs[key_to_save] = img
 num_classes = len(classes) + 1
-model = tv.models.detection.fasterrcnn_resnet50_fpn(pretrained=False, num_classes=num_classes)
-
-
+#%%
 class CustomDataset(Dataset):
     def __init__(self, images, boxes, transform=None):
         self.images = images
@@ -42,8 +46,14 @@ class CustomDataset(Dataset):
 
     def __getitem__(self, idx):
         image_name = list(self.images.keys())[idx]
-        image = self.images[image_name]
-        boxes = self.boxes[image_name]
+        print("Retrieving image: ", image_name)
+        try:
+            image = self.images[image_name]
+            boxes = self.boxes[image_name]
+        except Exception as e:
+            print("Error: ", e, type(e))
+            raise e
+
         if self.transform:
             image = self.transform(image)
         return image, boxes
@@ -61,7 +71,7 @@ model.roi_heads.box_predictor = models.detection.faster_rcnn.FastRCNNPredictor(i
 
 criterion = nn.SmoothL1Loss()
 
-optimizer = optim.adam(model.parameters(), lr=0.001)
+optimizer = optim.Adagrad(model.parameters(), lr=0.001)
 num_epochs = 10
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
@@ -80,3 +90,5 @@ for epoch in range(num_epochs):
     print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(data_loader)}')
 
 torch.save(model.state_dict(), 'faster_rcnn_model.pth')
+
+# %%
