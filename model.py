@@ -1,4 +1,3 @@
-#%%
 import torchvision as tv
 import torch as t
 import os 
@@ -10,12 +9,13 @@ import torchvision.models as models
 import torch.optim as optim
 import torch.nn as nn
 import ssl
+from PIL import Image 
 ssl._create_default_https_context = ssl._create_unverified_context
 classes = set()
 boxes = {}
 imgs = {}
 for i in range(26):
-    directory = f'/drafter_{i}/csvs/'
+    directory = f'drafter_{i}/csvs/'
     for file in os.listdir(directory):
         if file.endswith(".csv"):
             df = pd.read_csv(directory + file)
@@ -27,14 +27,15 @@ for i in range(26):
 
 
 for i in range(26):
-    directory = f'/drafter_{i}/images/'
+    directory = f'drafter_{i}/images/'
     for file in os.listdir(directory):
         if file.endswith((".png", ".jpg", ".jpeg")):
-            img = tv.io.read_image(directory + file)
+            image = Image.open(directory + file) 
+            transformer = tv.transforms.Compose([tv.transforms.ToTensor()])
+            img = transformer(image)
             key_to_save = file.split('.')[0]
             imgs[key_to_save] = img
 num_classes = len(classes) + 1
-#%%
 class CustomDataset(Dataset):
     def __init__(self, images, boxes, transform=None):
         self.images = images
@@ -90,5 +91,3 @@ for epoch in range(num_epochs):
     print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(data_loader)}')
 
 torch.save(model.state_dict(), 'faster_rcnn_model.pth')
-
-# %%
