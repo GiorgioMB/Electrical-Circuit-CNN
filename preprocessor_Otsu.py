@@ -1,7 +1,7 @@
 import cv2 as cv
 import os
 
-dataset_path  = "C:\\Users\\Asus\\Documents\\VS_Code_files\\Python\\CNN_Electrical_Circuit\\dataset" #Insert path to your dataset
+dataset_path  = f"C:\\Users\\Asus\\Documents\\VS_Code_files\\Python\\CNN_Electrical_Circuit\\dataset" #Insert path to your dataset
 
 try:
     os.mkdir(dataset_path + f"\\test") #Creating a test directory where the preprocessed images from sample directory will be stored

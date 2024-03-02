@@ -7,7 +7,7 @@ import json
 
 
 def read_labels(classes_json: str):
-    with open(classes_json, "r") as f:
+    with open(classes_json, "r", encoding="utf-8") as f:
         label_map = json.load(f)
     return label_map
 
@@ -17,7 +17,7 @@ def xml_to_csv(xml_file, csv_file, label_map):
     tree = ET.parse(xml_file)
     root = tree.getroot()
 
-    with open(csv_file, "w", newline="") as csv_file:
+    with open(csv_file, "w", newline="", encoding="utf-8") as csv_file:
 
         csv_writer = csv.writer(csv_file)
         headers = [
@@ -69,7 +69,6 @@ def process_drafter_folders(label_map_file):
                 )
 
                 xml_to_csv(xml_file_path, csv_file_path, label_map)
-
 
 if __name__ == "__main__":
     process_drafter_folders("classes.json")
