@@ -1,3 +1,4 @@
+#%%
 import torchvision as tv
 import torch as t
 import os 
@@ -31,11 +32,12 @@ for i in range(26):
     for file in os.listdir(directory):
         if file.endswith((".png", ".jpg", ".jpeg")):
             image = Image.open(directory + file) 
-            transformer = tv.transforms.Compose([tv.transforms.ToTensor()])
-            img = transformer(image)
             key_to_save = file.split('.')[0]
-            imgs[key_to_save] = img
+            imgs[key_to_save] = image
 num_classes = len(classes) + 1
+filtered = set(imgs.keys()).intersection(set(boxes.keys()))
+imgs_filter = {k: imgs[k] for k in filtered}
+boxes_filter = {k: boxes[k] for k in filtered}
 class CustomDataset(Dataset):
     def __init__(self, images, boxes, transform=None):
         self.images = images
@@ -63,7 +65,7 @@ transform = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-dataset = CustomDataset(images=imgs, boxes=boxes, transform=transform)
+dataset = CustomDataset(images=imgs_filter, boxes=boxes_filter, transform=transform)
 data_loader = DataLoader(dataset, batch_size=4, shuffle=True)
 
 model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
