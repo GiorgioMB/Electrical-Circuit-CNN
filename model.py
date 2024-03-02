@@ -32,6 +32,7 @@ for i in range(26):
     for file in os.listdir(directory):
         if file.endswith((".png", ".jpg", ".jpeg")):
             image = Image.open(directory + file) 
+            resized_image = image.resize((2048, 2048))
             key_to_save = file.split('.')[0]
             imgs[key_to_save] = image
 num_classes = len(classes) + 1
@@ -93,3 +94,5 @@ for epoch in range(num_epochs):
     print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(data_loader)}')
 
 torch.save(model.state_dict(), 'faster_rcnn_model.pth')
+
+# %%
