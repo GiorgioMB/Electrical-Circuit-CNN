@@ -11,7 +11,7 @@ import torch.nn as nn
 classes = set()
 boxes = {}
 for i in range(26):
-    directory = f'/Users/micalettog/Desktop/Computer Science/Projects/BSDSA/Circuit/archive-3/drafter_{i}/csvs/'
+    directory = f'/drafter_{i}/csvs/'
     for file in os.listdir(directory):
         if file.endswith(".csv"):
             df = pd.read_csv(directory + file)
@@ -22,7 +22,7 @@ for i in range(26):
 imgs = {}
 
 for i in range(26):
-    directory = f'/Users/micalettog/Desktop/Computer Science/Projects/BSDSA/Circuit/archive-3/drafter_{i}/images/'
+    directory = f'/drafter_{i}/images/'
     for file in os.listdir(directory):
         if file.endswith(".png"):
             img = tv.io.read_image(directory + file)
