@@ -75,7 +75,7 @@ model.roi_heads.box_predictor = models.detection.faster_rcnn.FastRCNNPredictor(i
 
 criterion = nn.SmoothL1Loss()
 
-optimizer = optim.Adagrad(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=1e-5, amsgrad = True)
 num_epochs = 10
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
