@@ -25,8 +25,9 @@ for i in range(26):
             df = pd.read_csv(directory + file)
             classes.update(df['object'].tolist())
             temp = df[['xmin', 'ymin', 'xmax', 'ymax']].to_numpy()
+            temp2 = df['object'].tolist()
             key_to_save = file.split('.')[0] 
-            boxes[key_to_save] = t.from_numpy(temp)
+            boxes[key_to_save] = {'boxes': t.from_numpy(temp), 'labels': temp2}
 print('Boxes loaded')
 
 for i in range(26):
@@ -34,7 +35,6 @@ for i in range(26):
     for file in os.listdir(directory):
         if file.endswith((".png", ".jpg", ".jpeg")):
             image = Image.open(directory + file) 
-            image = image.resize((512, 512))
             key_to_save = file.split('.')[0]
             imgs[key_to_save] = image
 print('Images Loaded')
@@ -68,8 +68,10 @@ class CustomDataset(Dataset):
         return image, boxes
 
 transform = transforms.Compose([
+    
     transforms.ToTensor(),
 ])
+
 dataset = CustomDataset(images=imgs_filter, boxes=boxes_filter, transform=transform)
 data_loader = DataLoader(dataset, batch_size=4, shuffle=True, collate_fn =collate_fn)
 
@@ -88,13 +90,10 @@ for epoch in range(num_epochs):
     running_loss = 0.0
     for images, targets in data_loader:
         for imgs, targ in zip(images, targets):
-            print(images)
             imgs = imgs.to(device)
-            print('Loaded Images')
-            targ = targ.to(device)
-            print('Loaded y')
+            targ = {'boxes': targ.to(device)}
             optimizer.zero_grad()
-            loss_dict = model(imgs, targ)
+            loss_dict = model([imgs], [targ])
             losses = sum(loss for loss in loss_dict.values())
             losses.backward()
             optimizer.step()
