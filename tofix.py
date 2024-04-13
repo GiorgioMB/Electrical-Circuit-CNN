@@ -10,6 +10,26 @@ import torch.optim as optim
 import torch.nn as nn
 import ssl
 from PIL import Image 
+from torchvision.transforms import functional as F
+
+class ResizeTransform:
+    def __init__(self, target_height, target_width):
+        self.target_height = target_height
+        self.target_width = target_width
+
+    def __call__(self, image, target):
+        # Resize image
+        image = F.resize(image, (self.target_height, self.target_width))
+        # Resize bounding boxes
+        original_dims = torch.tensor([image.width, image.height, image.width, image.height], dtype=torch.float32)
+        target['boxes'] = (target['boxes'] / original_dims) * torch.tensor([self.target_width, self.target_height, self.target_width, self.target_height], dtype=torch.float32)
+        return image, target
+
+# Update transformations
+transform = transforms.Compose([
+    ResizeTransform(600, 600),
+    transforms.ToTensor(),
+])
 ssl._create_default_https_context = ssl._create_unverified_context
 classes = set()
 boxes = {}
@@ -56,23 +76,14 @@ class CustomDataset(Dataset):
 
     def __getitem__(self, idx):
         image_name = list(self.images.keys())[idx]
-        try:
-            image = self.images[image_name]
-            boxes = self.boxes[image_name]
-        except Exception as e:
-            print("Error: ", e, type(e))
-            raise e
-
+        image = self.images[image_name]
+        boxes = self.boxes[image_name]
         if self.transform:
-            image = self.transform(image)
+            image, boxes = self.transform(image, boxes)
         return image, boxes
 
-transform = transforms.Compose([
-    
-    transforms.ToTensor(),
-])
 
-dataset = CustomDataset(images=imgs_filter, boxes=boxes_filter, transform=transform)
+dataset = CustomDataset(images=imgs_filter, boxes=boxes_filter, transform=ResizeTransform)
 data_loader = DataLoader(dataset, batch_size=4, shuffle=True, collate_fn =collate_fn)
 
 model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
