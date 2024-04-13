@@ -1,6 +1,7 @@
 import torchvision as tv
 import torch as t
 import os 
+import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -11,25 +12,8 @@ import torch.nn as nn
 import ssl
 from PIL import Image 
 from torchvision.transforms import functional as F
+from sklearn.preprocessing import OneHotEncoder
 
-class ResizeTransform:
-    def __init__(self, target_height, target_width):
-        self.target_height = target_height
-        self.target_width = target_width
-
-    def __call__(self, image, target):
-        # Resize image
-        image = F.resize(image, (self.target_height, self.target_width))
-        # Resize bounding boxes
-        original_dims = torch.tensor([image.width, image.height, image.width, image.height], dtype=torch.float32)
-        target['boxes'] = (target['boxes'] / original_dims) * torch.tensor([self.target_width, self.target_height, self.target_width, self.target_height], dtype=torch.float32)
-        return image, target
-
-# Update transformations
-transform = transforms.Compose([
-    ResizeTransform(600, 600),
-    transforms.ToTensor(),
-])
 ssl._create_default_https_context = ssl._create_unverified_context
 classes = set()
 boxes = {}
@@ -58,6 +42,10 @@ for i in range(26):
             key_to_save = file.split('.')[0]
             imgs[key_to_save] = image
 print('Images Loaded')
+labels = list(classes)
+encoder = OneHotEncoder()
+encoder.fit(np.array(labels).reshape(-1,1))
+
 num_classes = len(classes) + 1
 filtered = set(imgs.keys()).intersection(set(boxes.keys()))
 imgs_filter = {k: imgs[k] for k in filtered}
@@ -66,10 +54,10 @@ del imgs
 import gc
 gc.collect()
 class CustomDataset(Dataset):
-    def __init__(self, images, boxes, transform=None):
+    def __init__(self, images, boxes, target_size = (512, 512)):
         self.images = images
         self.boxes = boxes
-        self.transform = transform
+        self.theight, self.twidth = target_size
 
     def __len__(self):
         return len(self.images)
@@ -78,12 +66,18 @@ class CustomDataset(Dataset):
         image_name = list(self.images.keys())[idx]
         image = self.images[image_name]
         boxes = self.boxes[image_name]
-        if self.transform:
-            image, boxes = self.transform(image, boxes)
+        og_dims = torch.tensor([image.width, image.height, image.width, image.height])
+        image = F.resize(image, (self.theight, self.twidth))
+        boxes['boxes'] = (boxes['boxes'] / og_dims) * torch.tensor([self.twidth, self.theight, self.twidth, self.theight])
+        image = F.to_tensor(image)
+        labels = np.array(boxes['labels']).reshape(-1, 1)
+        labels_encoded = encoder.transform(labels).toarray()
+        boxes['labels'] = torch.tensor(labels_encoded, dtype=torch.float32)
+
         return image, boxes
 
 
-dataset = CustomDataset(images=imgs_filter, boxes=boxes_filter, transform=ResizeTransform)
+dataset = CustomDataset(images=imgs_filter, boxes=boxes_filter)
 data_loader = DataLoader(dataset, batch_size=4, shuffle=True, collate_fn =collate_fn)
 
 model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
@@ -101,10 +95,11 @@ for epoch in range(num_epochs):
     running_loss = 0.0
     for images, targets in data_loader:
         for imgs, targ in zip(images, targets):
+            print(type(imgs))
             imgs = imgs.to(device)
-            targ = {'boxes': targ.to(device)}
             optimizer.zero_grad()
-            loss_dict = model([imgs], [targ])
+            targ = {k: torch.tensor(targ[k]).to(device) for k in targ}
+            loss_dict = model(imgs, targ)
             losses = sum(loss for loss in loss_dict.values())
             losses.backward()
             optimizer.step()
