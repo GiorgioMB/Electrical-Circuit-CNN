@@ -16,6 +16,37 @@ import ssl
 # Disabling SSL verification to allow image loading from web if needed
 ssl._create_default_https_context = ssl._create_unverified_context
 
+class Rescale(object):
+    """Rescale the image in a sample to a given size."""
+    def __init__(self, output_size):
+        assert isinstance(output_size, (int, tuple))
+        self.output_size = output_size
+
+    def __call__(self, sample):
+        image, boxes = sample['image'], sample['boxes']
+        w, h = image.size
+        if isinstance(self.output_size, int):
+            if h > w:
+                new_h, new_w = self.output_size * h / w, self.output_size
+            else:
+                new_h, new_w = self.output_size, self.output_size * w / h
+        else:
+            new_h, new_w = self.output_size
+
+        new_h, new_w = int(new_h), int(new_w)
+
+        img = resize(image, (new_h, new_w))
+
+        # Scale the bounding boxes accordingly
+        boxes = boxes * torch.tensor([new_w / w, new_h / h, new_w / w, new_h / h])
+
+        return {'image': img, 'boxes': boxes}
+
+transform = transforms.Compose([
+    Rescale(256),
+    transforms.ToTensor(),
+])
+
 class CustomDataset(Dataset):
     def __init__(self, images, boxes, transform=None):
         self.images = images
@@ -34,7 +65,7 @@ class CustomDataset(Dataset):
             image = self.transform(image)
 
         boxes = torch.as_tensor(box_data, dtype=torch.float32)
-        labels = torch.ones((boxes.shape[0],), dtype=torch.int64)  # Assuming class label 1 for all
+        labels = torch.ones((boxes.shape[0],), dtype=torch.int64)
 
         target = {'boxes': boxes, 'labels': labels}
         return image, target
@@ -74,7 +105,7 @@ filtered = set(imgs.keys()).intersection(set(boxes.keys()))
 imgs_filter = {k: imgs[k] for k in filtered}
 boxes_filter = {k: boxes[k] for k in filtered}
 
-dataset = CustomDataset(imgs_filter, boxes_filter, transform=None)
+dataset = CustomDataset(imgs_filter, boxes_filter, transform=transform)
 data_loader = DataLoader(dataset, batch_size=2, shuffle=True, collate_fn=collate_fn)
 
 model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
@@ -93,14 +124,16 @@ for epoch in range(num_epochs):
     for images, targets in data_loader:
         images = images.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-        optimizer.zero_grad()
+
         loss_dict = model(images, targets)
         losses = sum(loss for loss in loss_dict.values())
+
+        optimizer.zero_grad()
         losses.backward()
         optimizer.step()
+
         running_loss += losses.item()
-    print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(data_loader)}')
+
+    print(f'Epoch {epoch+1}/{num_epochs}, Loss: {running_loss / len(data_loader)}')
 
 torch.save(model.state_dict(), 'faster_rcnn_model.pth')
-
-# %%
