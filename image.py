@@ -1,3 +1,4 @@
+#%%
 import torch
 import torchvision.models as models
 import ssl
@@ -32,6 +33,10 @@ class ModelOutput:
     def get_boxes_image(self, in_path: str, out_path: str) -> None:
         image = Image.open(in_path)
         image_pil = F.resize(image, self.resolution)
+
+
+
+
         image = F.to_tensor(image_pil)
         
         pred = self.model([image]) 
@@ -52,5 +57,13 @@ class ModelOutput:
 
 
 if __name__ == '__main__':
+    image = cv2.imread('TRIAL.png')
+    cv2.imwrite(
+        "TRIAL" + ".jpg",
+        image,
+        [int(cv2.IMWRITE_JPEG_QUALITY), 100],
+    )
     mod = ModelOutput('faster_rcnn_model.pth')
-    mod.get_boxes_image('TEST.jpg', 'out.jpg')
+    mod.get_boxes_image('TRIAL.jpg', 'out5.jpg')
+
+# %%
